@@ -28,6 +28,11 @@ param authClientId string = ''
 param authClientSecret string = ''
 param authTenantId string = ''
 
+@secure()
+param literalClientId string = ''
+@secure()
+param literalAuthToken string = ''
+
 var databaseAdmin = 'dbadmin'
 var databaseName = 'literalai'
 var resourceToken = toLower(uniqueString(subscription().id, name, location))
@@ -150,93 +155,101 @@ module containerApp 'core/host/container-app.bicep' = {
     location: location
     tags: tags
     containerEnvId: containerAppEnv.outputs.id
-    imageName: 'docker.io/literalai/platform-distrib:${dockerImageVersion}'
+    imageName: empty(literalAuthToken) ? 'docker.io/literalai/platform:${dockerImageVersion}' : 'docker.io/literalai/platform-distrib:${dockerImageVersion}'
     targetPort: 3000
-    env: [
-      {
-        name: 'LITERAL_DOCKER_PAT'
-        secretRef: 'dockerpat'
-      }
-      {
-        name: 'LITERAL_CLIENT_ID'
-        secretRef: 'literalClientId'
-      }
-      {
-        name: 'LITERAL_AUTH_TOKEN'
-        secretRef: 'literalAuthToken'
-      }
-      {
-        name: 'DATABASE_HOST'
-        value: postgresServer.outputs.fqdn
-      }
-      {
-        name: 'DATABASE_NAME'
-        value: databaseName
-      }
-      {
-        name: 'DATABASE_USERNAME'
-        value: databaseAdmin
-      }
-      {
-        name: 'DATABASE_PASSWORD'
-        secretRef: 'databasepassword'
-      }
-      {
-        name: 'DATABASE_SSL'
-        value: 'true'
-      }
-      {
-        name: 'REDIS_URL'
-        secretRef: 'redisurl'
-      }
-      {
-        name: 'BUCKET_NAME'
-        value: storageContainerName
-      }
-      {
-        name: 'NEXTAUTH_URL'
-        value: 'https://${containerAppName}.${containerAppEnv.outputs.defaultDomain}'
-      }
-      {
-        name: 'NEXTAUTH_SECRET'
-        secretRef: 'nextauthsecret'
-      }
-      {
-        name: 'APP_AZURE_STORAGE_ACCOUNT'
-        value: blobStorage.outputs.storageAccountName
-      }
-      {
-        name: 'APP_AZURE_STORAGE_ACCESS_KEY'
-        value: blobStorage.outputs.storageAccountKey
-      }
-      {
-        name: 'AZURE_AD_CLIENT_ID'
-        value: authClientId
-      }
-      {
-        name: 'AZURE_AD_CLIENT_SECRET'
-        secretRef: 'authclientsecret'
-      }
-      {
-        name: 'AZURE_AD_TENANT_ID'
-        value: authTenantId
-      }
-      {
-        name: 'ENABLE_CREDENTIALS_AUTH'
-        value: useAuthentication ? 'false' : 'true'
-      }
-      {
-        name: 'GATEWAY_URL'
-        value: 'http://localhost:8787'
-      }
-    ]
-    secrets: {
-      redisurl: redisCache.outputs.connectionString
-      databasepassword: databasePassword
-      nextauthsecret: nextAuthSecret
-      dockerpat: dockerPat
-      authclientsecret: authClientSecret
-    }
+    env: concat([
+        {
+          name: 'LITERAL_DOCKER_PAT'
+          secretRef: 'dockerpat'
+        }
+        {
+          name: 'DATABASE_HOST'
+          value: postgresServer.outputs.fqdn
+        }
+        {
+          name: 'DATABASE_NAME'
+          value: databaseName
+        }
+        {
+          name: 'DATABASE_USERNAME'
+          value: databaseAdmin
+        }
+        {
+          name: 'DATABASE_PASSWORD'
+          secretRef: 'databasepassword'
+        }
+        {
+          name: 'DATABASE_SSL'
+          value: 'true'
+        }
+        {
+          name: 'REDIS_URL'
+          secretRef: 'redisurl'
+        }
+        {
+          name: 'BUCKET_NAME'
+          value: storageContainerName
+        }
+        {
+          name: 'NEXTAUTH_URL'
+          value: 'https://${containerAppName}.${containerAppEnv.outputs.defaultDomain}'
+        }
+        {
+          name: 'NEXTAUTH_SECRET'
+          secretRef: 'nextauthsecret'
+        }
+        {
+          name: 'APP_AZURE_STORAGE_ACCOUNT'
+          value: blobStorage.outputs.storageAccountName
+        }
+        {
+          name: 'APP_AZURE_STORAGE_ACCESS_KEY'
+          value: blobStorage.outputs.storageAccountKey
+        }
+        {
+          name: 'AZURE_AD_CLIENT_ID'
+          value: authClientId
+        }
+        {
+          name: 'AZURE_AD_TENANT_ID'
+          value: authTenantId
+        }
+        {
+          name: 'ENABLE_CREDENTIALS_AUTH'
+          value: useAuthentication ? 'false' : 'true'
+        }
+        {
+          name: 'GATEWAY_URL'
+          value: 'http://localhost:8787'
+        }
+      ],
+      !empty(literalClientId) ? [
+        {
+          name: 'LITERAL_CLIENT_ID'
+          secretRef: 'literalclientid'
+        }
+      ] : [],
+      !empty(literalAuthToken) ? [
+        {
+          name: 'LITERAL_AUTH_TOKEN'
+          secretRef: 'literalauthtoken'
+        }
+      ] : [],
+      !empty(authClientSecret) ? [
+        {
+          name: 'AZURE_AD_CLIENT_SECRET'
+          secretRef: 'authclientsecret'
+        }
+      ] : [])
+    secrets: union({
+        redisurl: redisCache.outputs.connectionString
+        databasepassword: databasePassword
+        nextauthsecret: nextAuthSecret
+        dockerpat: dockerPat
+      },
+      !empty(literalClientId) ? { literalclientid: literalClientId } : {},
+      !empty(literalAuthToken) ? { literalauthtoken: literalAuthToken } : {},
+      !empty(authClientSecret) ? { authclientsecret: authClientSecret } : {})
   }
 }
 
