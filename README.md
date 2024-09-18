@@ -18,10 +18,7 @@ Use the [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-
 
 ## Register on LiteralAI
 
-To self-host LiteralAI you will need to be registered as described in [the documentation](https://docs.getliteral.ai/self-hosting/get-started). Depending on the option you select, you will receive either :
-
-* A Literal Client ID and Authorization Token to run the public image
-* Or a Docker PAT to run the private image
+To self-host LiteralAI you will need to have a Docker PAT. This token is only distributed for customers on the Enterprise plan. Contact us for more information.
 
 ## Setup
 
